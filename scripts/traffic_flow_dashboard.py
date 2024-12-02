@@ -4,6 +4,8 @@ import numpy as np
 import joblib
 import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.express as px
+import plotly.graph_objects as go
 import os
 
 # Get the absolute path to the model file
@@ -21,6 +23,7 @@ try:
     day_of_week_encoder = joblib.load(day_of_week_encoder_path)
     time_period_encoder = joblib.load(time_period_encoder_path)
     y_label_encoder = joblib.load(y_label_encoder_path)
+    data = pd.read_csv(os.path.join(os.path.dirname(current_dir), 'dataset', 'traffic_flow_dataset.csv'))
 except FileNotFoundError as e:
     st.error(f"Error loading model files: {str(e)}")
     st.stop()
@@ -108,79 +111,176 @@ def make_prediction(user_input):
     
     return traffic_situation[0]
 
+def plot_hourly_pattern():
+    """Create an interactive line plot showing traffic patterns by hour."""
+    # Extract hour from Time column and group data
+    data['hour'] = pd.to_datetime(data['Time']).dt.hour
+    hourly_data = data.groupby('hour').agg({
+        'CarCount': 'mean',
+        'BikeCount': 'mean', 
+        'BusCount': 'mean',
+        'TruckCount': 'mean'
+    }).reset_index()
+    
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=hourly_data['hour'], y=hourly_data['CarCount'], name='Cars', mode='lines+markers'))
+    fig.add_trace(go.Scatter(x=hourly_data['hour'], y=hourly_data['BikeCount'], name='Bikes', mode='lines+markers'))
+    fig.add_trace(go.Scatter(x=hourly_data['hour'], y=hourly_data['BusCount'], name='Buses', mode='lines+markers'))
+    fig.add_trace(go.Scatter(x=hourly_data['hour'], y=hourly_data['TruckCount'], name='Trucks', mode='lines+markers'))
+    
+    fig.update_layout(
+        title='Hourly Traffic Pattern',
+        xaxis_title='Hour of Day',
+        yaxis_title='Average Vehicle Count',
+        hovermode='x unified'
+    )
+    
+    st.plotly_chart(fig)
+
+def plot_vehicle_composition(user_input):
+    """Create a pie chart showing vehicle composition."""
+    labels = ['Cars', 'Bikes', 'Buses', 'Trucks']
+    values = [
+        user_input['CarCount'].values[0],
+        user_input['BikeCount'].values[0],
+        user_input['BusCount'].values[0],
+        user_input['TruckCount'].values[0]
+    ]
+    
+    fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.3)])
+    fig.update_layout(title='Vehicle Composition')
+    
+    st.plotly_chart(fig)
+
+def plot_weekly_pattern():
+    """Create a heatmap showing traffic patterns by day."""
+    # Calculate average total traffic for each day
+    weekly_data = data.groupby('Day of the week')['Total'].mean()
+    
+    # Ensure consistent ordering of days
+    days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    weekly_data = weekly_data.reindex(days)
+    
+    fig = go.Figure(data=go.Bar(
+        x=days,
+        y=weekly_data.values,
+        marker_color='lightblue'
+    ))
+    
+    fig.update_layout(
+        title='Weekly Traffic Pattern',
+        xaxis_title='Day of Week',
+        yaxis_title='Average Total Traffic'
+    )
+    
+    st.plotly_chart(fig)
+
+def plot_traffic_distribution():
+    """Plot distribution of traffic volumes."""
+    fig = go.Figure()
+    
+    # Create histogram of total traffic volume
+    hist_values = data['Total'].values
+    
+    fig.add_trace(go.Histogram(
+        x=hist_values,
+        nbinsx=50,
+        name='Traffic Distribution',
+        opacity=0.75
+    ))
+    
+    fig.update_layout(
+        title='Traffic Volume Distribution',
+        xaxis_title='Total Vehicle Count',
+        yaxis_title='Frequency'
+    )
+    
+    st.plotly_chart(fig)
+
 # Main function for the app
 def run_app():
     st.title("Traffic Flow Prediction")
     st.write("Predict traffic conditions based on vehicle counts and time information.")
     
-    # Get user input
-    user_input = get_user_input()
+    # Create tabs for different sections
+    tab1, tab2, tab3 = st.tabs(["Prediction", "Traffic Patterns", "Analysis"])
     
-    # Make prediction
-    traffic_situation = make_prediction(user_input)
+    with tab1:
+        # Get user input
+        user_input = get_user_input()
+        
+        # Make prediction
+        traffic_situation = make_prediction(user_input)
+        
+        # Display prediction in a prominent way
+        st.header("Prediction Results")
+        st.markdown(
+            f"""
+                <div style="
+                    padding: 20px;
+                    background-color: #f0f2f6;
+                    border-radius: 10px;
+                    text-align: center;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1)">
+                    <h2 style="color: #0066cc; margin-bottom: 10px;">Predicted Traffic</h2>
+                    <p style="font-size: 36px; font-weight: bold; color: #1f1f1f; margin: 0;">
+                        {traffic_situation}
+                    </p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        
+        # Display vehicle composition
+        st.subheader("Current Vehicle Composition")
+        plot_vehicle_composition(user_input)
     
-    # Display prediction in a prominent way
-    st.header("Prediction Results")
+    with tab2:
+        st.header("Traffic Patterns")
+        
+        # Hourly pattern
+        st.subheader("Hourly Traffic Pattern")
+        plot_hourly_pattern()
+        
+        # Weekly pattern
+        st.subheader("Weekly Traffic Pattern")
+        plot_weekly_pattern()
+    
+    with tab3:
+        st.header("Traffic Analysis")
+        
+        # Feature importance
+        st.subheader("Feature Importance")
+        feature_importance = pd.DataFrame({
+            'Feature': model.feature_names_in_,
+            'Importance': model.feature_importances_
+        }).sort_values('Importance', ascending=False)
+        
+        fig, ax = plt.subplots(figsize=(10, 6))
+        sns.barplot(data=feature_importance, x='Importance', y='Feature')
+        plt.title('Feature Importance in Traffic Prediction')
+        plt.xlabel('Importance Score')
+        plt.ylabel('Features')
+        plt.tight_layout()
+        st.pyplot(fig)
+        
+        # Traffic distribution
+        st.subheader("Traffic Volume Distribution")
+        plot_traffic_distribution()
+        
+        # Display input summary
+        with st.expander("View Input Summary"):
+            st.write("Vehicle Counts:")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.write(f"🚗 Cars: {user_input['CarCount'].values[0]}")
+                st.write(f"🚲 Bikes: {user_input['BikeCount'].values[0]}")
+                st.write(f"🚌 Buses: {user_input['BusCount'].values[0]}")
+            with col2:
+                st.write(f"🚛 Trucks: {user_input['TruckCount'].values[0]}")
+                st.write(f"📊 Total: {user_input['Total'].values[0]}")
+                st.write(f"⏰ Time: {user_input['hour'].values[0]:02d}:{user_input['minute'].values[0]:02d}")
 
-    st.markdown(
-        f"""
-            <div style="
-                padding: 20px;
-                background-color: #f0f2f6;
-                border-radius: 10px;
-                text-align: center;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1)">
-                <h2 style="color: #0066cc; margin-bottom: 10px;">Predicted Traffic</h2>
-                <p style="font-size: 36px; font-weight: bold; color: #1f1f1f; margin: 0;">
-                    {traffic_situation}
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-    
-    # Add some space
-    st.write("")
-    st.write("")
-    
-    # Display input summary
-    with st.expander("View Input Summary"):
-        st.write("Vehicle Counts:")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write(f"🚗 Cars: {user_input['CarCount'].values[0]}")
-            st.write(f"🚲 Bikes: {user_input['BikeCount'].values[0]}")
-            st.write(f"🚌 Buses: {user_input['BusCount'].values[0]}")
-        with col2:
-            st.write(f"🚛 Trucks: {user_input['TruckCount'].values[0]}")
-            st.write(f"📊 Total: {user_input['Total'].values[0]}")
-            st.write(f"⏰ Time: {user_input['hour'].values[0]:02d}:{user_input['minute'].values[0]:02d}")
-    
-    # Display feature importance
-    st.header("Feature Importance")
-    
-    # Get feature importance from model
-    feature_importance = pd.DataFrame({
-        'Feature': model.feature_names_in_,
-        'Importance': model.feature_importances_
-    }).sort_values('Importance', ascending=False)
-
-    # Create bar plot
-    fig, ax = plt.subplots(figsize=(10, 6))
-    sns.barplot(data=feature_importance, x='Importance', y='Feature')
-    plt.title('Feature Importance in Traffic Prediction')
-    plt.xlabel('Importance Score')
-    plt.ylabel('Features')
-    
-    # Adjust layout to prevent label cutoff
-    plt.tight_layout()
-    
-    # Display plot in Streamlit
-    st.pyplot(fig)
-    
-    # Display feature importance as a table
-    with st.expander("View Feature Importance Details"):
-        st.dataframe(feature_importance)
 # Run the app
 if __name__ == '__main__':
     run_app()
