@@ -194,36 +194,30 @@ def run_app():
     
     # Display prediction
     st.header("Prediction Results")
-    
-    # Create three columns for centered display
-    left_col, mid_col, right_col = st.columns([1, 2, 1])
-    
-    with mid_col:
-        st.markdown(
-            f"""
-            <div style="
-                padding: 20px;
-                width: 100%;
-                background-color: #f0f2f6;
-                border-radius: 10px;
-                text-align: center;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1)">
-                <h2 style="color: #0066cc; margin-bottom: 10px;">Predicted Social Media Daily Usage</h2>
-                <p style="font-size: 48px; font-weight: bold; color: #1f1f1f; margin: 0;">
-                    {prediction[0]:.0f}
-                </p>
-                <p style="font-size: 20px; color: #666666; margin: 0;">
-                    minutes per day
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-    
+    st.markdown(
+        f"""
+        <div style="
+            padding: 20px;
+            width: 100%;
+            background-color: #f0f2f6;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1)">
+            <h2 style="color: #0066cc; margin-bottom: 10px;">Predicted Social Media Daily Usage</h2>
+            <p style="font-size: 48px; font-weight: bold; color: #1f1f1f; margin: 0;">
+                {prediction[0]:.0f}
+            </p>
+            <p style="font-size: 20px; color: #666666; margin: 0;">
+                minutes per day
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
     # Add some space
     st.write("")
     st.write("")
-    
     # Visualize prediction context
     st.header("Feature Importance")
     visualize_feature_importance()
