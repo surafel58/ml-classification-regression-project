@@ -73,7 +73,6 @@ def get_user_input():
     
     with col2:
         truck_count = st.slider("Truck Count", 0, 50, 5)
-        total = st.slider("Total Vehicles", 0, 250, 35)
         day_of_week = st.selectbox("Day of the Week", 
                                  ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 
                                   'Friday', 'Saturday', 'Sunday'])
@@ -89,7 +88,7 @@ def get_user_input():
         'BikeCount': [bike_count],
         'BusCount': [bus_count],
         'TruckCount': [truck_count],
-        'Total': [total],
+        'Total': [car_count + bike_count + bus_count + truck_count],
         'day_of_week': [day_of_week],
         'day_of_month': [day_of_month],
         'time_period': [time_period]
