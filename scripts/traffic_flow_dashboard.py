@@ -60,7 +60,6 @@ def process_features(data, scaler=None, day_of_week_encoder=None, time_period_en
 
 # Function to handle user input via Streamlit sliders
 def get_user_input():
-    st.sidebar.header("Traffic Input Features")
     
     col1, col2 = st.columns(2)
     
