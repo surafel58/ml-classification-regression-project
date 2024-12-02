@@ -8,8 +8,8 @@ import os
 
 # Get the absolute path to the model file
 current_dir = os.path.dirname(os.path.abspath(__file__))
-model_path = os.path.join(os.path.dirname(current_dir), 'model', 'model.pkl')
-scaler_path = os.path.join(os.path.dirname(current_dir), 'model', 'scaler.pkl')
+model_path = os.path.join(os.path.dirname(current_dir), 'model', 'social_media', 'model.pkl')
+scaler_path = os.path.join(os.path.dirname(current_dir), 'model', 'social_media', 'scaler.pkl')
 model = joblib.load(model_path)
 scaler = joblib.load(scaler_path)
 
