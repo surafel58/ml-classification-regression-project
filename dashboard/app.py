@@ -18,7 +18,7 @@ def fetch_total_transactions(r):
 
 def fetch_fraud_transactions(r):
     """Retrieve the fraudulent transaction count from Redis."""
-    fraud = r.get("fraud_transactions")
+    fraud = r.get("total_fraud_transactions")
     return int(fraud) if fraud else 0
 
 def fetch_last_transactions(r, limit=10):
