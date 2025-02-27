@@ -1,7 +1,6 @@
 import streamlit as st
 import redis
 import json
-import time
 import pandas as pd
 
 # -----------------------------
@@ -51,10 +50,19 @@ def update_dashboard():
     total = fetch_total_transactions(r)
     fraud = fetch_fraud_transactions(r)
     df = fetch_last_transactions(r)
-
+    
     st.subheader("Metrics")
     display_metrics(total, fraud)
     display_transactions_table(df)
+
+# -----------------------------
+# Real-Time Fragment for Live Updates
+# -----------------------------
+
+# The fragment will refresh only this portion of the UI every 2 seconds.
+@st.fragment(run_every=2)
+def dashboard_fragment():
+    update_dashboard()
 
 # -----------------------------
 # Main Dashboard Logic
@@ -63,12 +71,9 @@ def update_dashboard():
 def main():
     st.set_page_config(page_title="Fraud Detection Dashboard", layout="wide")
     st.title("Real-Time Fraud Detection Dashboard")
-
-    update_dashboard()
-
-    # Wait for 1 second then refresh the page
-    time.sleep(1)
-    st.rerun()
+    
+    # Call the fragment. Only this fragment will refresh periodically.
+    dashboard_fragment()
 
 if __name__ == "__main__":
     main()
