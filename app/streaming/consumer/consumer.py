@@ -1,5 +1,4 @@
 import json
-import random  # Need this for fallback behavior
 from ..config import create_kafka_consumer, get_redis_connection
 import logging
 import sys
@@ -8,8 +7,6 @@ import os
 # Add project root to Python path to find scripts module
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
-# We need to import the MissingValueHandler class before loading the model
-# This is to ensure it's available when unpickling the model
 from scripts.feature_engineering import MissingValueHandler, FraudFeatureTransformer
 from scripts.predict import predict_transaction
 
@@ -25,6 +22,7 @@ if not r.exists("total_fraud_transactions"):
     r.set("total_fraud_transactions", 0)
 
 LAST_10_KEY = "last_10_transactions"
+LAST_100_KEY = "last_100_transactions"
 
 def detect_fraud(transaction):
     """
@@ -62,6 +60,10 @@ def update_redis(transaction):
     
     r.lpush(LAST_10_KEY, json.dumps(transaction))
     r.ltrim(LAST_10_KEY, 0, 9)
+
+    # Update longer-term history (keep last 100 transactions)
+    r.lpush(LAST_100_KEY, json.dumps(transaction))
+    r.ltrim(LAST_100_KEY, 0, 99)
 
 consumer = create_kafka_consumer("transactions")
 
