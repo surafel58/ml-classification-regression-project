@@ -2,5 +2,5 @@ FROM python:3.12
 WORKDIR /app
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
-COPY streaming/ ./streaming
-CMD ["python", "streaming/producer/producer.py"]
+COPY app/streaming ./app/streaming
+CMD ["python", "-m", "app.streaming.producer.producer"]

@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 # Project root directory
-ROOT_DIR = Path(__file__).parent.parent
+ROOT_DIR = os.getcwd()
 
 # Data paths
 DATA_DIR = os.path.join(ROOT_DIR, 'dataset')
@@ -14,7 +14,7 @@ MODEL_DIR = os.path.join(ROOT_DIR, 'model')
 
 # Model artifacts
 PIPELINE_PATH = os.path.join(MODEL_DIR, 'fraud_detection_pipeline.joblib')
-SCALER_PATH = os.path.join(MODEL_DIR, 'scaler.pkl')
+# SCALER_PATH = os.path.join(MODEL_DIR, 'scaler.pkl')
 
 # Feature settings
 IMPORTANT_CATEGORIES = [

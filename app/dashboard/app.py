@@ -1,15 +1,14 @@
 import streamlit as st
-import redis
 import json
 import pandas as pd
+import sys
+import os
 
-# -----------------------------
-# Helper Functions
-# -----------------------------
+# # Add the project root to sys.path so Python can find the app package
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-def get_redis_connection():
-    """Establish and return a connection to Redis."""
-    return redis.Redis(host='localhost', port=6379, db=0)
+# # Now we can import from app
+from app.streaming.config import get_redis_connection
 
 def fetch_total_transactions(r):
     """Retrieve the total transaction count from Redis."""
@@ -50,7 +49,6 @@ def update_dashboard():
     total = fetch_total_transactions(r)
     fraud = fetch_fraud_transactions(r)
     df = fetch_last_transactions(r)
-    
     st.subheader("Metrics")
     display_metrics(total, fraud)
     display_transactions_table(df)
@@ -59,11 +57,13 @@ def update_dashboard():
 # Real-Time Fragment for Live Updates
 # -----------------------------
 
-# The fragment will refresh only this portion of the UI every 2 seconds.
+# # The fragment will refresh only this portion of the UI every 2 seconds.
 @st.fragment(run_every=2)
 def dashboard_fragment():
-    update_dashboard()
-
+    try:
+        update_dashboard()
+    except Exception as e:
+        st.error(f"Error updating dashboard, Please check the logs for more information")
 # -----------------------------
 # Main Dashboard Logic
 # -----------------------------
@@ -72,7 +72,6 @@ def main():
     st.set_page_config(page_title="Fraud Detection Dashboard", layout="wide")
     st.title("Real-Time Fraud Detection Dashboard")
     
-    # Call the fragment. Only this fragment will refresh periodically.
     dashboard_fragment()
 
 if __name__ == "__main__":
