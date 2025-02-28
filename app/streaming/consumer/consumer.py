@@ -1,7 +1,17 @@
 import json
-import random
+import random  # Need this for fallback behavior
 from ..config import create_kafka_consumer, get_redis_connection
 import logging
+import sys
+import os
+
+# Add project root to Python path to find scripts module
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
+
+# We need to import the MissingValueHandler class before loading the model
+# This is to ensure it's available when unpickling the model
+from scripts.feature_engineering import MissingValueHandler, FraudFeatureTransformer
+from scripts.predict import predict_transaction
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -16,15 +26,25 @@ if not r.exists("total_fraud_transactions"):
 
 LAST_10_KEY = "last_10_transactions"
 
-def simulate_fraud_detection(transaction):
+def detect_fraud(transaction):
     """
-    Simulate fraud detection by randomly flagging a transaction as fraudulent.
-    In your final model, you'll replace this logic with an actual inference call.
+    Use the trained machine learning model to detect fraud.
+    Return transaction with fraud status and probability.
     """
-    # For demonstration, mark 10% of transactions as fraud
-    is_fraud = random.random() < 0.1
-    transaction["fraud_status"] = "FRAUD DETECTED" if is_fraud else "NO FRAUD DETECTED"
-    return transaction
+    try:
+        result = predict_transaction(transaction)
+        transaction["fraud_status"] = "FRAUD DETECTED" if result['is_fraud'] else "NO FRAUD DETECTED"
+        transaction["fraud_probability"] = result['fraud_probability']
+        logger.info(f"Prediction: {result['is_fraud']}, Probability: {result['fraud_probability']:.4f}")
+        return transaction
+    
+    except Exception as e:
+        logger.error(f"Error predicting fraud: {e}")
+        # Fallback to random fraud detection instead of returning None
+        transaction["fraud_status"] = "NOT PROCESSED"
+        transaction["fraud_probability"] = 0.0
+        logger.info(f"Using fallback prediction: {transaction['fraud_status']}")
+        return transaction  # Always return the transaction object
 
 def update_redis(transaction):
     """
@@ -33,7 +53,8 @@ def update_redis(transaction):
       - Push the updated transaction (with fraud flag) onto a list.
       - Trim the list to the last 10 transactions.
     """
-    is_fraud = transaction["fraud_status"] == "FRAUD DETECTED"
+        
+    is_fraud = transaction.get("fraud_status", "").startswith("FRAUD DETECTED")
     if is_fraud:
         r.incr("total_fraud_transactions")
 
@@ -46,6 +67,13 @@ consumer = create_kafka_consumer("transactions")
 
 for message in consumer:
     transaction = message.value
-    transaction = simulate_fraud_detection(transaction)
-    logger.info(f"Processed transaction: {transaction}")
-    update_redis(transaction)
+    print(f"Received transaction: {transaction}")
+    if transaction:  # Make sure transaction is not None
+        processed_transaction = detect_fraud(transaction)
+        if processed_transaction:
+            logger.info(f"Processed transaction: {processed_transaction}")
+            update_redis(processed_transaction)
+        else:
+            logger.error("Failed to process transaction, detect_fraud returned None")
+    else:
+        logger.error("Received empty transaction")
