@@ -29,3 +29,20 @@ services:
     container_name: redis
     ports:
       - "6379:6379"
+  
+  producer:
+    build:
+      context: .
+      dockerfile: Dockerfile.producer
+    depends_on:
+      - kafka
+    restart: always
+
+  consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile.consumer
+    depends_on:
+      - kafka
+      - redis
+    restart: always
