@@ -9,6 +9,8 @@ r = redis.Redis(host='localhost', port=6379, db=0)
 # Initialize Redis keys if not already set
 if not r.exists("total_transactions"):
     r.set("total_transactions", 0)
+if not r.exists("total_fraud_transactions"):
+    r.set("total_fraud_transactions", 0)
 
 LAST_10_KEY = "last_10_transactions"
 
@@ -18,7 +20,8 @@ def simulate_fraud_detection(transaction):
     In your final model, you'll replace this logic with an actual inference call.
     """
     # For demonstration, mark 10% of transactions as fraud
-    transaction["is_fraud"] = random.random() < 0.1
+    is_fraud = random.random() < 0.1
+    transaction["fraud_status"] = "FRAUD DETECTED" if is_fraud else "NO FRAUD DETECTED"
     return transaction
 
 def update_redis(transaction):
@@ -28,7 +31,12 @@ def update_redis(transaction):
       - Push the updated transaction (with fraud flag) onto a list.
       - Trim the list to the last 10 transactions.
     """
+    is_fraud = transaction["fraud_status"] == "FRAUD DETECTED"
+    if is_fraud:
+        r.incr("total_fraud_transactions")
+
     r.incr("total_transactions")
+    
     r.lpush(LAST_10_KEY, json.dumps(transaction))
     r.ltrim(LAST_10_KEY, 0, 9)
 
