@@ -1,10 +1,12 @@
 import json
 import random
-from kafka import KafkaConsumer
-import redis
+from ..config import create_kafka_consumer, get_redis_connection
+import logging
 
-# Connect to Redis (ensure Redis is running)
-r = redis.Redis(host='localhost', port=6379, db=0)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+r = get_redis_connection()
 
 # Initialize Redis keys if not already set
 if not r.exists("total_transactions"):
@@ -40,18 +42,10 @@ def update_redis(transaction):
     r.lpush(LAST_10_KEY, json.dumps(transaction))
     r.ltrim(LAST_10_KEY, 0, 9)
 
-# Create Kafka consumer for the 'transactions' topic
-consumer = KafkaConsumer(
-    'transactions',
-    bootstrap_servers=['localhost:9092'],
-    # auto_offset_reset='earliest',
-    # enable_auto_commit=True,
-    value_deserializer=lambda m: json.loads(m.decode('utf-8'))
-)
+consumer = create_kafka_consumer("transactions")
 
 for message in consumer:
     transaction = message.value
-    # Simulate fraud detection by appending an "is_fraud" field
     transaction = simulate_fraud_detection(transaction)
-    print("Processed transaction:", transaction)
+    logger.info(f"Processed transaction: {transaction}")
     update_redis(transaction)
