@@ -32,10 +32,15 @@ class FraudFeatureTransformer(BaseEstimator, TransformerMixin):
     """Creates fraud detection features based on domain knowledge."""
     
     def __init__(self):
-        self.all_categories = IMPORTANT_CATEGORIES + ['others']
+        # Sort categories to ensure consistent order
+        self.all_categories = sorted(['grocery_pos', 'misc_net', 'others', 
+                                    'shopping_net', 'shopping_pos'])
+                                    # , 'gas_transport'])
+        
+        # Define the exact order of columns that will be output
+        self.output_columns = ['amt', 'gender', 'lat', 'long', 'city_pop', 'merch_lat', 'merch_long'] + [f'category_{cat}' for cat in self.all_categories] + ['hour', 'day', 'month', 'day_of_week', 'is_night', 'is_weekend', 'is_high_amount', 'risk_score']
     
     def fit(self, X, y=None):
-        # Nothing to learn, but we need this for the sklearn pipeline
         return self
     
     def transform(self, X):
@@ -55,18 +60,18 @@ class FraudFeatureTransformer(BaseEstimator, TransformerMixin):
         X['is_weekend'] = (X['day_of_week'].isin([5, 6])).astype(int)
         X['is_high_amount'] = (X['amt'] > HIGH_AMOUNT_THRESHOLD).astype(int)
         
-        # Handle categories
+        # Handle categories - vectorized operations
         X['category'] = X['category'].apply(
             lambda x: x if x in IMPORTANT_CATEGORIES else 'others'
         )
         
-        # Create all category columns with zeros
+        # Initialize category columns with zeros
         for cat in self.all_categories:
             X[f'category_{cat}'] = 0
         
-        # Set 1 for the present categories
-        for idx, cat in enumerate(X['category']):
-            X.at[idx, f'category_{cat}'] = 1
+        # Set category values using vectorized operation
+        for cat in self.all_categories:
+            X.loc[X['category'] == cat, f'category_{cat}'] = 1
         
         # Encode gender (M=1, F=0)
         if 'gender' in X.columns:
@@ -91,4 +96,9 @@ class FraudFeatureTransformer(BaseEstimator, TransformerMixin):
         columns_to_drop = [col for col in columns_to_drop if col in X.columns]
         X = X.drop(columns=columns_to_drop)
         
-        return X 
+        # Ensure columns are in the correct order
+        missing_cols = set(self.output_columns) - set(X.columns)
+        for col in missing_cols:
+            X[col] = 0
+            
+        return X[self.output_columns]
