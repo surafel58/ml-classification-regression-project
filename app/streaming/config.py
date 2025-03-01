@@ -3,9 +3,11 @@ import json
 import redis
 from kafka import KafkaProducer, KafkaConsumer
 import logging
-
+from dotenv import load_dotenv
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+load_dotenv()
 
 # Environment Variable Constants
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
