@@ -1,3 +1,14 @@
+# Import standard libraries first
+import streamlit as st
+import logging
+import sys
+import os
+
+# Add project root to Python path
+sys.path.insert(0, os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '../..')))
+
+# Now import project-specific modules
 from app.streaming.config import get_redis_connection
 from app.streamlit.utils import (
     fetch_total_transactions,
@@ -8,15 +19,8 @@ from app.streamlit.utils import (
     plot_fraud_by_category,
     plot_transaction_amount_distribution_split,
 )
-import streamlit as st
-import logging
-import sys
-import os
 
-sys.path.insert(0, os.path.abspath(
-    os.path.join(os.path.dirname(__file__), '../..')))
-
-
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -25,15 +29,10 @@ def update_dashboard(r):
     """Fetch data from Redis and update the dashboard display."""
     total = fetch_total_transactions(r)
     fraud = fetch_fraud_transactions(r)
-
     display_metrics(total, fraud)
-
     display_transactions_table(r)
-
     plot_transactions_over_time(r)
-
     plot_fraud_by_category(r)
-
     plot_transaction_amount_distribution_split(r)
 
 # This fragment refreshes every 2 seconds
@@ -47,7 +46,10 @@ def dashboard_fragment(r):
 
 
 def main():
+    # Get Redis connection
     r = get_redis_connection()
+    
+    # Display dashboard title with help text
     st.markdown(body="# Real-Time Dashboard", help="""
     This dashboard presents real-time fraud detection data from our streaming pipeline:
     
@@ -61,7 +63,8 @@ def main():
     time periods, and transaction amounts.
     """)
 
+    # Run the dashboard fragment
     dashboard_fragment(r)
 
-
+# This is called when the file is run directly or imported by navigation
 main()

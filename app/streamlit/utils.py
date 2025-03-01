@@ -4,12 +4,16 @@ import pandas as pd
 import streamlit as st
 from scripts.predict import predict_transaction
 
+TRANSACTIONS_HISTORY_KEY = "transactions_history"
+TOTAL_TRANSACTIONS_KEY = "total_transactions"
+TOTAL_FRAUD_TRANSACTIONS_KEY = "total_fraud_transactions"
+
 def fetch_total_transactions(r):
-    total = r.get("total_transactions")
+    total = r.get(TOTAL_TRANSACTIONS_KEY)
     return int(total) if total else 0
 
 def fetch_fraud_transactions(r):
-    fraud = r.get("total_fraud_transactions")
+    fraud = r.get(TOTAL_FRAUD_TRANSACTIONS_KEY)
     return int(fraud) if fraud else 0
 
 def fetch_transactions(r, key, limit=100):
@@ -25,7 +29,7 @@ def display_metrics(total, fraud):
     col2.metric(label="Fraudulent Transactions", value=fraud,border=True)
 
 def display_transactions_table(r):
-    df = fetch_transactions(r, "last_10_transactions")
+    df = fetch_transactions(r, TRANSACTIONS_HISTORY_KEY, limit=10)
     ct = st.container(border=True)
     with ct:
         st.markdown("### Transactions History" ,help="These are the last 10 transactions processed by the system")
@@ -76,7 +80,7 @@ def plot_transactions_over_time(r):
     Fetch the last 100 transactions from Redis (stored in "transactions_history"),
     group them by minute, and display a line chart showing transaction counts over time.
     """
-    df = fetch_transactions(r, "transactions_history")
+    df = fetch_transactions(r, TRANSACTIONS_HISTORY_KEY)
     ct = st.container(border=True)
     with ct:
         st.markdown("### Transactions Over Time - Last 60 minutes", help="""
@@ -103,13 +107,13 @@ def prepare_fraud_by_category_data(r):
     Returns:
         A DataFrame with columns 'category' and 'fraud_count'.
     """
-    df = fetch_transactions(r, "transactions_history")
+    df = fetch_transactions(r, TRANSACTIONS_HISTORY_KEY)
     if df.empty:
         return pd.DataFrame(columns=["category", "fraud_count"])
     
     try:
         # Create a column indicating fraud (1 if fraud, 0 otherwise)
-        df["is_fraud"] = df["fraud_status"].apply(lambda x: 1 if x == "FRAUD DETECTED" else 0)
+        df["is_fraud"] = df["fraud_status"].apply(lambda x: 1 if x.startswith("FRAUD DETECTED") else 0)
 
         # Map short category names to human-readable labels
         CATEGORY_LABELS = {
@@ -206,54 +210,54 @@ def plot_transaction_amount_distribution_split(r, bins=10):
     Each chart shows the transaction amount distribution with human-readable, sorted ranges.
     """
     # Fetch the 100 most recent transactions
-    df = fetch_transactions(r, "transactions_history")
-    if df.empty:
-        st.write("No transaction data available for amount distribution.")
-        return
+    df = fetch_transactions(r, TRANSACTIONS_HISTORY_KEY)
+    ct = st.container(border=True)
+    with ct:
+        if df.empty:
+            st.write("No transaction data available for amount distribution.")
+            return
+        # Ensure 'amt' is numeric and drop invalid values
+        df["amt"] = pd.to_numeric(df["amt"], errors="coerce")
+        df = df.dropna(subset=["amt"])
+        if df.empty:
+            st.write("No valid transaction data available.")
+            return
 
-    # Ensure 'amt' is numeric and drop invalid values
-    df["amt"] = pd.to_numeric(df["amt"], errors="coerce")
-    df = df.dropna(subset=["amt"])
-    if df.empty:
-        st.write("No valid transaction data available.")
-        return
+        df["is_fraud"] = df["fraud_status"].apply(lambda x: 1 if x.startswith("FRAUD DETECTED") else 0)
 
-    # Create a column for fraud flag: 1 if fraud, else 0
-    df["is_fraud"] = df["fraud_status"].apply(lambda x: 1 if x == "FRAUD DETECTED" else 0)
+        # Split data into fraud and non-fraud subsets
+        df_fraud = df[df["is_fraud"] == 1].copy()
+        df_legit = df[df["is_fraud"] == 0].copy()
 
-    # Split data into fraud and non-fraud subsets
-    df_fraud = df[df["is_fraud"] == 1].copy()
-    df_legit = df[df["is_fraud"] == 0].copy()
+        # Use our natural binning function for each subset
+        df_fraud_bins = bin_transaction_amounts_natural(df_fraud, bins=bins)
+        df_legit_bins = bin_transaction_amounts_natural(df_legit, bins=bins)
 
-    # Use our natural binning function for each subset
-    df_fraud_bins = bin_transaction_amounts_natural(df_fraud, bins=bins)
-    df_legit_bins = bin_transaction_amounts_natural(df_legit, bins=bins)
+        # Create two columns for side-by-side charts
+        col1, col2 = st.columns(2)
 
-    # Create two columns for side-by-side charts
-    col1, col2 = st.columns(2, border=True)
+        with col1:
+            st.markdown("### Fraudulent Transactions", help="""
+            This chart shows the distribution of fraudulent transactions across different amount ranges.
+            Amount ranges with higher counts indicate areas where fraud is more prevalent.
+            """)
+            if df_fraud_bins.empty:
+                st.write("No fraudulent transaction data available.")
+            else:
+                # Set 'Amount Range' as index and plot horizontal bar chart
+                df_fraud_bins = df_fraud_bins.set_index("Amount Range")
+                st.bar_chart(df_fraud_bins, height=400, color=["#ff8800"])
 
-    with col1:
-        st.markdown("### Fraudulent Transactions", help="""
-        This chart shows the distribution of fraudulent transactions across different amount ranges.
-        Amount ranges with higher counts indicate areas where fraud is more prevalent.
-        """)
-        if df_fraud_bins.empty:
-            st.write("No fraudulent transaction data available.")
-        else:
-            # Set 'Amount Range' as index and plot horizontal bar chart
-            df_fraud_bins = df_fraud_bins.set_index("Amount Range")
-            st.bar_chart(df_fraud_bins, height=400, color=["#ff8800"])
-
-    with col2:
-        st.markdown("### Non-Fraudulent Transactions", help="""
-        This chart shows the distribution of non-fraudulent transactions across different amount ranges.
-        Amount ranges with higher counts indicate areas where non-fraudulent transactions are more prevalent.
-        """)
-        if df_legit_bins.empty:
-            st.write("No non-fraudulent transaction data available.")
-        else:
-            df_legit_bins = df_legit_bins.set_index("Amount Range")
-            st.bar_chart(df_legit_bins, height=400)
+        with col2:
+            st.markdown("### Non-Fraudulent Transactions", help="""
+            This chart shows the distribution of non-fraudulent transactions across different amount ranges.
+            Amount ranges with higher counts indicate areas where non-fraudulent transactions are more prevalent.
+            """)
+            if df_legit_bins.empty:
+                st.write("No non-fraudulent transaction data available.")
+            else:
+                df_legit_bins = df_legit_bins.set_index("Amount Range")
+                st.bar_chart(df_legit_bins, height=400)
 
 
 def detect_fraud_manual_input(input_data: dict) -> dict:
