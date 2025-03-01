@@ -15,7 +15,6 @@ REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_DB = int(os.getenv("REDIS_DB", "0"))
 
-print(f"environment variables: {KAFKA_BOOTSTRAP_SERVERS}, {REDIS_HOST}, {REDIS_PORT}, {REDIS_DB}")
 # Kafka Configuration
 KAFKA_CONFIG = {
     "bootstrap_servers": [KAFKA_BOOTSTRAP_SERVERS],

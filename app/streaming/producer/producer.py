@@ -16,7 +16,7 @@ def produce_transactions():
         producer.send(topic_name, transaction)
         producer.flush()  # ensures message is sent immediately
         logger.info(f"Sent: {transaction}")
-        time.sleep(random.uniform(1, 2))
+        time.sleep(random.uniform(0.1, 0.5))
 
 if __name__ == "__main__":
     produce_transactions()
