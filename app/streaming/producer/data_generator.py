@@ -1,3 +1,4 @@
+import datetime
 import random
 import uuid
 import time
@@ -12,8 +13,10 @@ def generate_transaction():
     street, city, state, zip, lat, long, city_pop, job, dob, trans_num, unix_time,
     merch_lat, merch_long.
     """
-
-    trans_datetime = fake.date_time_between(start_date='-1y', end_date='now')
+    end_time = datetime.datetime.now()
+    start_time = end_time - datetime.timedelta(days=1)
+    # Generate a random datetime between the last 24 hours and now
+    trans_datetime = fake.date_time_between_dates(datetime_start=start_time, datetime_end=end_time)
     trans_date_trans_time = trans_datetime.strftime('%Y-%m-%d %H:%M:%S')
     unix_time = int(time.mktime(trans_datetime.timetuple()))
     first_name = fake.first_name()

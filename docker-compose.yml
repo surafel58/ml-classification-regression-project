@@ -55,7 +55,7 @@ services:
       context: .
       dockerfile: Dockerfile.producer
     env_file:
-      - .env
+      - .env.docker
     depends_on:
       kafka:
         condition: service_healthy
@@ -68,7 +68,7 @@ services:
       context: .
       dockerfile: Dockerfile.consumer
     env_file:
-      - .env
+      - .env.docker
     depends_on:
       kafka:
         condition: service_healthy

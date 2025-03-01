@@ -22,7 +22,7 @@ if not r.exists("total_fraud_transactions"):
     r.set("total_fraud_transactions", 0)
 
 LAST_10_KEY = "last_10_transactions"
-LAST_100_KEY = "last_100_transactions"
+TRANSACTIONS_HISTORY_KEY = "transactions_history"
 
 def detect_fraud(transaction):
     """
@@ -31,7 +31,7 @@ def detect_fraud(transaction):
     """
     try:
         result = predict_transaction(transaction)
-        transaction["fraud_status"] = "FRAUD DETECTED" if result['is_fraud'] else "NO FRAUD DETECTED"
+        transaction["fraud_status"] = "FRAUD DETECTED🚨" if result['is_fraud'] else "NO FRAUD DETECTED ✅"
         transaction["fraud_probability"] = result['fraud_probability']
         logger.info(f"Prediction: {result['is_fraud']}, Probability: {result['fraud_probability']:.4f}")
         return transaction
@@ -61,9 +61,8 @@ def update_redis(transaction):
     r.lpush(LAST_10_KEY, json.dumps(transaction))
     r.ltrim(LAST_10_KEY, 0, 9)
 
-    # Update longer-term history (keep last 100 transactions)
-    r.lpush(LAST_100_KEY, json.dumps(transaction))
-    r.ltrim(LAST_100_KEY, 0, 99)
+    r.lpush(TRANSACTIONS_HISTORY_KEY, json.dumps(transaction))
+    r.ltrim(TRANSACTIONS_HISTORY_KEY, 0, 99)
 
 consumer = create_kafka_consumer("transactions")
 
